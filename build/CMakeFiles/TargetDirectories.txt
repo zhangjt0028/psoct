@@ -1,0 +1,3 @@
+E:/desktop/DAcard/build/CMakeFiles/TEST.dir
+E:/desktop/DAcard/build/CMakeFiles/edit_cache.dir
+E:/desktop/DAcard/build/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,8 @@
+[
+{
+  "directory": "E:/desktop/DAcard/build",
+  "command": "\"E:\\Program Files\\mingw64\\bin\\g++.exe\"   -g -o CMakeFiles\\TEST.dir\\DAcard.cpp.obj -c E:\\desktop\\DAcard\\DAcard.cpp",
+  "file": "E:/desktop/DAcard/DAcard.cpp",
+  "output": "CMakeFiles/TEST.dir/DAcard.cpp.obj"
+}
+]

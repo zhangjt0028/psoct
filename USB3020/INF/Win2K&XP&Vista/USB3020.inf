@@ -1,0 +1,165 @@
+; da.inf
+;
+; Installation file (.inf) for the da device.
+;
+; (c) Copyright 2008 China SunDriver Tech Co,. Ltd 
+;
+
+[Version]
+Signature="$Chicago$"
+Provider="ART Technology Co.,Ltd"
+Class=ArtDevice
+ClassGUID={87989ADF-06DB-4025-92E8-40D902C03B0E}
+CatalogFile=USB3020.cat
+DriverVer=11/22/2008,1.0.0.0
+
+;
+; Driver information
+;
+
+[Manufacturer]
+%WSPRTCH%   = ART.Mfg
+
+[ART.Mfg]
+%ART.DeviceDesc0% = USB3020, USB\VID_04B4&PID_3020
+
+[ControlFlags]
+ExcludeFromSelect=USB\VID_04B4&PID_3020
+
+[DestinationDirs]
+DefaultDestDir   = 12
+USB3020.Files.Driver=10,System32\Drivers
+USB3020.Files.Driver.NTx86=10,System32\Drivers
+USB3020.Files.Dll=10,System32
+USB3020.Files.Dll.NTx86=10,System32
+USB3020.Files.Inf=10,inf
+USB3020.Files.Inf.NTx86=10,inf
+;
+; Source file information
+;
+
+[SourceDisksNames.x86]
+1 = %DiskId1%,,,""
+
+[SourceDisksFiles]
+; Files for disk China ART Telecom Co,. Ltd Installation Disk #1 (System)
+USB3020.sys = 1,,
+USB3020.dll = 1,,
+USB3020.inf = 1,,
+
+[SourceDisksFiles.x86]
+USB3020.sys = 1,,
+
+;
+; ClassInstall/ClassInstall32 Section
+;
+
+; Not necessary if using a standard class
+
+; 9X Style
+[ClassInstall]
+Addreg=Class_AddReg
+
+; NT Style
+[ClassInstall32]
+Addreg=Class_AddReg
+
+[Class_AddReg]
+HKR,,,,%DeviceClassName%
+HKR,,Icon,,"-20"
+
+;
+; General installation section
+;
+;===================================================
+;           Win 98
+;===================================================
+
+[USB3020]
+
+;
+; File sections
+;
+CopyFiles=USB3020.Files.Driver,USB3020.Files.Dll,USB3020.Files.Inf
+AddReg=USB3020.AddReg
+
+[USB3020.Files.Driver]
+USB3020.sys
+
+[USB3020.Files.Dll]
+USB3020.dll
+
+[USB3020.Files.Inf]
+USB3020.inf
+
+[USB3020.AddReg]
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;   FIX ME HERE IF ANY ITEM NEEDS TO BE REGISTERD  ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;===================================================
+;          Win 2000/NT
+;===================================================
+
+[USB3020.NTx86]
+CopyFiles=USB3020.Files.Driver.NTx86,USB3020.Files.Dll.NTx86,USB3020.Files.Inf.NTx86
+
+[USB3020.Files.Driver.NTx86]
+USB3020.sys,,,%COPYLG_NOSKIP%
+
+[USB3020.Files.Dll.NTx86]
+USB3020.dll,,,%COPYLG_NOSKIP%
+
+[USB3020.Files.Inf.NTx86]
+USB3020.Inf,,,%COPYLG_NOSKIP%
+
+;
+; Service Installation
+;
+[USB3020.NTx86.Services]
+AddService = USB3020, 0x00000002 , USB3020_Service_Inst, USB3020_EventLog_Inst
+
+;0x00000002,SPSVCINST_ASSOCSERVICE
+
+[USB3020_Service_Inst]
+DisplayName    = %USB3020.SvcDesc%
+ServiceType    = 1                  ; SERVICE_KERNEL_DRIVER
+StartType      = 3                  ; SERVICE_DEMAND_START
+ErrorControl   = 1                  ; SERVICE_ERROR_NORMAL
+LoadOrderGroup = Pointer Port
+ServiceBinary  = %10%\System32\Drivers\USB3020.sys
+
+
+[USB3020_EventLog_Inst]
+AddReg = USB3020_EventLog_AddReg
+
+[USB3020_EventLog_AddReg]
+HKR,,EventMessageFile,0x00020000,"%SystemRoot%\System32\IoLogMsg.dll;%SystemRoot%\System32\drivers\USB3020.sys"
+HKR,,TypesSupported,0x00010001,7
+
+;0x00020000,FLG_ADDREG_TYPE_EXPAND
+;0x00010001,FLG_ADDREG_TYPE_DWORD
+
+[Strings]
+
+;
+; Non-Localizable Strings
+;
+COPYLG_NOSKIP  = 2 ; Do not allow user to skip file
+
+;REG_SZ         = 0x00000000
+;REG_MULTI_SZ   = 0x00010000
+;REG_EXPAND_SZ  = 0x00020000
+;REG_BINARY     = 0x00000001
+;REG_DWORD      = 0x00010001
+;SERVICEROOT    = "System\CurrentControlSet\Services"
+
+;
+; Localizable Strings
+;
+
+ART.DeviceDesc0 = "Art USB3020 16Bit 4CH 1MHz DA Board(V2.0)"
+DiskId1 = "ART Technology Co.,Ltd Installation Disk #1 (System)"
+ART = "ART Technology Co.,Ltd."
+USB3020.SvcDesc="Art USB3020 16Bit 4CH 1MHz DA Board(V2.0)"
+DeviceClassName="Art Device"

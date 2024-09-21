@@ -1,0 +1,125 @@
+;/*++
+;
+;Copyright (c) Microsoft Corporation.  All rights reserved.
+;
+;   THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY
+;   KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+;   IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR
+;   PURPOSE.
+;
+;Module Name:
+;
+;    USB3020.INF
+;
+;Abstract:
+;    INF file for a generic USB device.
+;
+;--*/
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=Sample
+ClassGuid={78A1C341-4539-11d3-B88D-00C04FAD5171}
+Provider=%MSFT%
+DriverVer=05/22/2014,
+CatalogFile=USB3020.cat
+CatalogFile.NTx86=USB3020X86.cat
+CatalogFile.NTIA64=USB3020I64.cat
+CatalogFile.NTAMD64=USB3020X64.cat
+
+[DestinationDirs]
+DefaultDestDir = 12
+USB3020.Files.Driver=10,System32\Drivers
+USB3020.Files.Dll=10,System32
+USB3020.Files.Inf=10,inf
+
+; ================= Class section =====================
+
+[ClassInstall32]
+Addreg=SampleClassReg     
+
+[SampleClassReg]
+HKR,,,0,%ClassName%
+HKR,,Icon,,-5
+HKR,,DeviceCharacteristics,0x10001,0x100     ;Use same security checks on relative opens
+HKR,,Security,,"D:P(A;;GA;;;SY)(A;;GA;;;BA)" ;Allow generic all access to system and built-in Admin. 
+
+
+; ================= Device Install section =====================
+
+[ControlFlags]
+ExcludeFromSelect=USB\VID_04B4&PID_3020
+
+
+[Manufacturer]
+%MSFT%=MSFT,NTx86, NTia64, NTamd64
+
+; For Win2K
+[MSFT]
+; DisplayName            Section           DeviceId
+; -----------       	 -------           --------
+%USB3020.DRVDESC%=USB3020_Inst, USB\VID_04B4&PID_3020
+
+; For XP and later
+[MSFT.NTx86]
+; DisplayName            Section           DeviceId
+; -----------       	 -------           --------
+%USB3020.DRVDESC%=USB3020_Inst, USB\VID_04B4&PID_3020
+[MSFT.NTia64]
+; DisplayName            Section           DeviceId
+; -----------       	 -------           --------
+%USB3020.DRVDESC%=USB3020_Inst, USB\VID_04B4&PID_3020
+
+[MSFT.NTamd64]
+; DisplayName            Section           DeviceId
+; -----------       	 -------           --------
+%USB3020.DRVDESC%=USB3020_Inst, USB\VID_04B4&PID_3020
+
+
+[USB3020_Inst.NT]
+CopyFiles=USB3020.Files.Driver,USB3020.Files.Dll
+AddReg=USB3020.AddReg
+
+[USB3020.Files.Driver]
+USB3020.sys
+
+[USB3020.Files.Dll]
+USB3020_32.dll
+USB3020_64.dll
+
+[SourceDisksFiles]
+USB3020.sys=1,,
+USB3020_32.dll=1,,
+USB3020_64.dll=1,,
+USB3020.inf=1,,
+
+[SourceDisksFiles.NTamd64]
+USB3020.sys=1,,
+
+[SourceDisksNames.x86]
+1 = %DISK_NAME%,,,\i386
+
+[SourceDisksNames.ia64]
+1 = %DISK_NAME%,,,\ia64
+
+[SourceDisksNames.amd64]
+1 = %DISK_NAME%,,,\amd64
+
+
+[USB3020_Inst.NT.Services]
+AddService=USB3020,0x00000002,USB3020_Service 
+
+[USB3020_Service]
+DisplayName    = %USB3020.SVCDESC%                            
+ServiceType    = 1                  ; SERVICE_KERNEL_DRIVER
+StartType      = 3                  ; SERVICE_DEMAND_START
+ErrorControl   = 1                  ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\USB3020.sys                            
+
+[Strings]
+MSFT = "ART"
+ClassName = "Art Device"
+USB3020.SVCDESC = "Art USB3020 16Bit 4CH 1MHz DA Board"
+USB3020.DRVDESC = "Art USB3020 16Bit 4CH 1MHz DA Board"
+DISK_NAME = "ART USB3020"
+
