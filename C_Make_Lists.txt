@@ -1,3 +1,12 @@
 cmake_minimum_required( VERSION 3.0)
 project(TEST)
 add_executable(${PROJECT_NAME} DAcard.cpp)
+
+
+
+
+
+# 指定库文件路径
+link_directories(/path/to/lib)
+# 链接库
+target_link_libraries(your_target_name yourlib)

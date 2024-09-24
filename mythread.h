@@ -44,7 +44,6 @@ public slots:
 
 signals:
 
-public slots:
 };
 
 #endif // MYTHREAD_H

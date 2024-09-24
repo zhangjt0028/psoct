@@ -98,7 +98,7 @@ bool mythread::StartAlazarADcapture()
     // 指定时钟的采样率为400MHz，并选择外时钟
     double samplesPerSec = 400000000.0; //1GHZ采样率
     retCode = AlazarSetCaptureClock(mainWidget::m_AlazarBoardHandle, EXTERNAL_CLOCK,
-        SAMPLE_RATE_400MSPS, CLOCK_EDGE_RISING, 0);
+        SAMPLE_RATE_250MSPS, CLOCK_EDGE_RISING, 0);
 
     // 确定chnnal A 和 B的一些input要求
     retCode = AlazarInputControl(mainWidget::m_AlazarBoardHandle,
