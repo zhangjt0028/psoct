@@ -25,50 +25,11 @@ mainWidget::mainWidget(QWidget *parent):
     ui(new Ui::mainWidget)
 {
    
-        // 初始化采集卡
-        U32 boardCount = AlazarBoardsInSystemBySystemID(1);
-        if (boardCount == 1)
-        {
-           std::cout<<"系统中找到采集卡 "<<std::endl;
-        }
-        if (boardCount == 0)
-        {
-            std::cout<<"系统中没有找到采集卡 "<<std::endl;
-        }
-        mainWidget::m_AlazarBoardHandle = AlazarGetBoardBySystemID(1, 1);
-        if (!mainWidget::m_AlazarBoardHandle)
-        {
-            std::cout<<"系统中没有找到采集卡 "<<std::endl;
-        }
+
 
 
         //添加数据
-        //连接DA卡和初始化相关的系数
-        pDAUSB3020 = new DA_USB3020(200319L, 10, 100, 0, 2);
-        if (pDAUSB3020->isConnected())
-        {
-            Voltage = 1150; //mV 修改振镜电压
-            Frequency = 225.4; // Hz
-            duty_cycle = 0.9;
-            BScanlines = 800; // Frames
-            std::cout<<"DA卡初始化成功"<<std::endl;
-        }
-        else
-        {
-            std::cout<<"DA卡初始化失败"<<std::endl;
-        }
-        pDAUSB3020->DisableDA();
-        pDAUSB3020->ReleaseDA();
-        pDAUSB3020->CalculateDAdata(Voltage, Frequency, duty_cycle, BScanlines,mainWidget::xMode, mainWidget::yMode);
-        bool br = pDAUSB3020->WriteDataToDA();
-        if (br)
-        {
-            std::cout<<"DA卡连接成功"<<std::endl;
-        }
-        else
-        {
-            std::cout<<"DA卡连接失败"<<std::endl;
-        }
+
 
         //初始化本底
         //m_BG = float[2048];

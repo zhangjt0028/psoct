@@ -28,6 +28,7 @@ DA_USB3020::DA_USB3020(unsigned long SamplesPerSec, unsigned long ZeroBufferPoin
     ConnectDA();
 }
 
+///
 void DA_USB3020::CalculateDAdata(unsigned int Voltage, double Frequency, double duty_cycle, unsigned int BScanlines,int xscanMode, int yscanMode)
 {
     this->Voltage = Voltage;
@@ -43,7 +44,7 @@ void DA_USB3020::CalculateDAdata(unsigned int Voltage, double Frequency, double 
     GenDataT();
 }
 
-bool DA_USB3020::ConnectDA()
+bool DA_USB3020::ConnectDA() ///
 {
     hDevice = USB3020_CreateDevice(); // �����豸����
     if(hDevice == INVALID_HANDLE_VALUE)
@@ -81,7 +82,7 @@ bool DA_USB3020::ConnectDA()
         return true;
     }
 }
-
+///
 bool DA_USB3020::WriteDataToDA()
 {
     InitDAForScan(MODE_2D_CROSS_SCAN, false);
@@ -337,25 +338,22 @@ bool DA_USB3020::EnableDA()
 
 }
 
-bool DA_USB3020::DisableDA()
+bool DA_USB3020::DisableDA() ///
 {
     USB3020_DisableDeviceDA(hDevice, 0);
     USB3020_DisableDeviceDA(hDevice, 1);
     USB3020_DisableDeviceDA(hDevice, 2);
     USB3020_DisableDeviceDA(hDevice, 3);
-    return true;
-}
-
-bool DA_USB3020::ReleaseDA()
-{
     USB3020_ReleaseDeviceDA(hDevice, 0);
     USB3020_ReleaseDeviceDA(hDevice, 1);
     USB3020_ReleaseDeviceDA(hDevice, 2);
-    USB3020_ReleaseDeviceDA(hDevice, 3);
+    USB3020_ReleaseDeviceDA(hDevice, 3);    
     return true;
 }
 
-bool DA_USB3020::isConnected()
+
+
+bool DA_USB3020::isConnected() ///
 {
     if(hDevice == INVALID_HANDLE_VALUE)
         return false;
@@ -447,7 +445,6 @@ bool DA_USB3020::Start3DscanRepeat()
 DA_USB3020::~DA_USB3020()
 {
     DisableDA();
-    ReleaseDA();
     USB3020_ReleaseDevice(hDevice);   // �ͷ��豸����
 
     if (pSegmentInfoX)

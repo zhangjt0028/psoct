@@ -119,7 +119,7 @@ bool mythread::StartAlazarADcapture()
         TRIG_ENGINE_J,
         TRIG_EXTERNAL,
         TRIGGER_SLOPE_POSITIVE,
-        180,
+        180, //TriggerLevelCode = 128 + 127 * TriggerLevelVolts / InputRangeVolts
         TRIG_ENGINE_K,
         TRIG_DISABLE,
         TRIGGER_SLOPE_POSITIVE,
@@ -129,12 +129,12 @@ bool mythread::StartAlazarADcapture()
         ETR_TTL);
 
     // 设置trigger delay，这里设置为60个sample
-    double triggerDelay_sec = 0;
+    //double triggerDelay_sec = 0;
     //U32 triggerDelay_samples = (U32)(triggerDelay_sec * samplesPerSec + 0.5);
-    U32 triggerDelay_samples = (U32)0;
+    //U32 triggerDelay_samples = (U32)0;
+    //retCode = AlazarSetTriggerDelay(mainWidget::m_AlazarBoardHandle, triggerDelay_samples);
 
     // trigger timeout设置，避免采集卡没有接收到触发；
-    retCode = AlazarSetTriggerDelay(mainWidget::m_AlazarBoardHandle, triggerDelay_samples);
     double triggerTimeout_sec = 10;
     U32 triggerTimeout_clocks = (U32)(triggerTimeout_sec / 10.e-6 + 0.5);
 
