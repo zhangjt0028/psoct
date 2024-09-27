@@ -58,7 +58,7 @@ mainWidget::~mainWidget()
     mainWidget::captureflag = 0;
     // 关闭DA卡程序
     pDAUSB3020->DisableDA();
-    pDAUSB3020->ReleaseDA();
+
     pDAUSB3020->StopScan();
 
     firstThread->quit();
@@ -103,7 +103,7 @@ void mainWidget::timerEvent(QTimerEvent *event)
         if (bufferCompleted == 3200)
         {
             pDAUSB3020->DisableDA();
-            pDAUSB3020->ReleaseDA();
+
             pDAUSB3020->StopScan();
             return;
         }
@@ -188,7 +188,7 @@ void mainWidget::timerEvent(QTimerEvent *event)
 void mainWidget::OCTplots()
 {
     pDAUSB3020->DisableDA();
-    pDAUSB3020->ReleaseDA();
+
     if(mainWidget::scanMode == 22)//二维
     {
         pDAUSB3020->Start2DscanRepeat();

@@ -1,264 +1,108 @@
 #include "DAcard.h"
 //#include "mainwidget.h"
 
-DA_USB3020::DA_USB3020(unsigned long SamplesPerSec, unsigned long ZeroBufferPoint, unsigned long CosTransitPoint, int xscanMode, int yscanMode)
+DA_USB3020::DA_USB3020()
 {
-    this->SamplesPerSec = SamplesPerSec;
-    this->ZeroBufferPoint = ZeroBufferPoint;
-    this->CosTransitPoint = CosTransitPoint;
-    this->xscanMode = xscanMode;
-    this->yscanMode = yscanMode;
+	Voltage = 1150;
+	Frequency = 225.4;
+	duty_cycle = 0.9;
+	BScanlines = 800;
+	SamplesPerSec = 4001000; 
+	ZeroBufferPoint = 10; // 0V电压的点数
+    xscanMode = 0;
+    yscanMode = 2;
 
     pDataX = NULL;
     pDataY = NULL;
     pDataT = NULL;
-
     pSegmentInfoX = NULL;
     pSegmentInfoY = NULL;
     pSegmentInfoT = NULL;
-
     pParaDA_2D1D = NULL;
     pParaDA_3D = NULL;
     pParaDA_2D_Repeat = NULL;
     pParaDA_3D_Repeat = NULL;
-
     hDevice = INVALID_HANDLE_VALUE;
     curStatus = STATUS_STOP;
 
     ConnectDA();
 }
 
-///
-void DA_USB3020::CalculateDAdata(unsigned int Voltage, double Frequency, double duty_cycle, unsigned int BScanlines,int xscanMode, int yscanMode)
+void DA_USB3020::CalculateDAdata()
 {
-    this->Voltage = Voltage;
-    this->Frequency = Frequency;
-    this->duty_cycle = duty_cycle;
-    this->BScanlines = BScanlines;
-    this->xscanMode = xscanMode;
-    this->yscanMode = yscanMode;
+    len_Total = long(SamplesPerSec * 1.0 / Frequency + 0.5);
+    len_Transit = long(SamplesPerSec * 0.5 * (1-duty_cycle) / Frequency + 0.5);
+    len_Scan = len_Total - len_Transit * 2;
 
+    delete [] pDataX;
+    pDataX = new unsigned short[len_Total + ZeroBufferPoint];
+    delete [] pDataY;
+    pDataY = new unsigned short[TBD];
+    delete [] pDataT;
+    pDataT = new unsigned short[len_Total + ZeroBufferPoint];
 
-    GenDataX();
-    GenDataY();
-    GenDataT();
-}
-
-bool DA_USB3020::ConnectDA() ///
-{
-    hDevice = USB3020_CreateDevice(); // �����豸����
-    if(hDevice == INVALID_HANDLE_VALUE)
-        return false;
-    else
+    for (unsigned int i = 0; i < len_Total + ZeroBufferPoint; ++i)
     {
-        if (pParaDA_2D1D)
-            delete pParaDA_2D1D;
-        pParaDA_2D1D = new USB3020_PARA_DA();
-        pParaDA_2D1D->OutputRange = USB3020_OUTPUT_N5000_P5000mV; // ��5V������źŷ�Χ
-        pParaDA_2D1D->Frequency = SamplesPerSec;				// Ĭ�ϲ�����
-        pParaDA_2D1D->LoopCount = 0;							// ��Ч
-        pParaDA_2D1D->TriggerSource = USB3020_TRIGSRC_SOFT_DA;	// ��������
-        pParaDA_2D1D->TriggerMode = USB3020_TRIGMODE_BURST;		// ��������
-        pParaDA_2D1D->TriggerDir = USB3020_TRIGDIR_POSITIVE;	// �����ش���
-        pParaDA_2D1D->ClockSource = USB3020_CLOCKSRC_OUT;		// �ڲ�ʱ��
-        pParaDA_2D1D->bSingleOut = false;
-
-        if (pParaDA_3D)
-            delete pParaDA_3D;
-        pParaDA_3D = new USB3020_PARA_DA();
-        pParaDA_3D->OutputRange = USB3020_OUTPUT_N5000_P5000mV; // ��5V������źŷ�Χ
-        pParaDA_3D->Frequency = SamplesPerSec;					// Ĭ�ϲ�����
-        pParaDA_3D->LoopCount = 0;								// ��Ч
-        pParaDA_3D->TriggerSource = USB3020_TRIGSRC_SOFT_DA;	// ��������
-        pParaDA_3D->TriggerMode = USB3020_TRIGMODE_SINGLE;		// ���δ���
-        pParaDA_3D->TriggerDir = USB3020_TRIGDIR_POSITIVE;		// �����ش���
-        pParaDA_3D->ClockSource = USB3020_CLOCKSRC_OUT;			// �ڲ�ʱ��
-        pParaDA_3D->bSingleOut = false;
-
-        // ��ʼ��Ĭ���ͷ�DA���������
-        DisableDA();
-        ReleaseDA();
-
-        return true;
+        pDataX[i] = 0;
+        pDataT[i] = 0;
     }
-}
-///
-bool DA_USB3020::WriteDataToDA()
-{
-    InitDAForScan(MODE_2D_CROSS_SCAN, false);
-    long nRetSizeWords;
-    nRetSizeWords = 0;
-    bStatus = USB3020_WriteDeviceBulkDA(hDevice, pDataX, x_len,
-        &nRetSizeWords, xscanMode);
-    if(!bStatus)
+    //  0->-V
+    for (unsigned int i = 0; i < len_Transit; ++i)
     {
-        return false;
+        pDataX[i] = LinearCut(Voltage_0V, Voltage_5V_neg, len_Transit, i);
+        pDataT[i] = Voltage_0V;
     }
-
-    nRetSizeWords = 0;
-    bStatus = USB3020_WriteDeviceBulkDA(hDevice, pDataT, x_len,
-        &nRetSizeWords, 1 );
-    if(!bStatus)
+    // -V->V
+    for (int i = 0; i < len_Scan; ++i)
     {
-        return false;
+        pDataX[i + len_Transit] = LinearCut(Voltage_5V_neg, Voltage_5V, len_Scan, i);
+        pDataT[i] = Voltage_5V;
     }
-
-    nRetSizeWords = 0;
-    bStatus = USB3020_WriteDeviceBulkDA(hDevice, pDataY, y_len,
-        &nRetSizeWords, yscanMode);
-    if(!bStatus)
+    // V->0
+    for (unsigned int i = 0; i < len_Transit; ++i)
     {
-        return false;
+        pDataX[i + len_Transit + len_Scan] = LinearCut(Voltage_5V, Voltage_0V, len_Transit, i);
+        pDataT[i] = Voltage_0V;
+    }
+    // 0V
+    for (unsigned int i = 0 ; i < ZeroBufferPoint; ++i)
+    {
+        pDataX[i + len_Total] = Voltage_0V;
+        pDataT[i] = Voltage_0V;
     }
 
 
-    return true;
-}
+    delete [] pSegmentInfoX;
+    delete [] pSegmentInfoY;
+    delete [] pSegmentInfoT;
 
-bool DA_USB3020::InitDAForScan(int mode, bool thenEnableDA)
-{
-    if (!isReadyForScan())
-        return false;
-    PUSB3020_PARA_DA pPara = NULL;
-    if (mode == MODE_1D_SCAN || mode == MODE_2D_CROSS_SCAN || mode == MODE_2D_SCAN_REPEAT)
+    //////////////not done///////////////
+    pSegmentInfoX = new USB3020_SEGMENT_INFO;
+    pSegmentInfoX[0].SegmentSize = len_Total + ZeroBufferPoint;
+    pSegmentInfoX[0].SegLoopCount = BScanlines * AVERAGE_NUM;
+
+
+    // TBscans
+    for (int i = 0; i < BScanlines; ++i)
     {
-        pPara = pParaDA_2D1D;
+        pDataY[2 * i] = pDataY[2 * i + 1] =
+            short(32768 + Voltage * 65536.0 / 10000.0 *
+            (2 * i - BScanlines + 1) / (BScanlines - 1) + 0.5);
     }
-    else if (mode == MODE_3D_SCAN || mode == MODE_3D_SCAN_REPEAT)
-    {
-        pPara = pParaDA_3D;
-    }
-    else
-    {
-        return false;
-    }
-    curMode = mode;
 
-
-    // �ṹOCT����ֶβ���
-    //��ݲ�һ�����ڵĵ���
-    len_RampScan = long(SamplesPerSec * 1.0 / Frequency + 0.5);
-    // ��֤һ�����ڵĳ����ܹ���2����
-    if (len_RampScan % 2 != 0)
-    {
-        len_RampScan = len_RampScan - 1;
-    }
-    // ����ɨ������ĳ���
-    len_LinearScan = long(SamplesPerSec * duty_cycle / Frequency + 0.5);
-    CosTransitPoint = long(SamplesPerSec * 0.5 * (1-duty_cycle) / Frequency + 0.5);
-    //////////////////////////////////////////////////////////////////////////
-    // Xͨ���ܹ���Ϊ4�Σ�ÿ�ε���ʼ��ͳ��ȷֱ�������ʾ
-    //////////////////////////////////////////////////////////////////////////
-    x_T1_beg = 0;
-    x_T1_len = 2 * len_LinearScan + 3 * CosTransitPoint;
-    x_T1_1_beg = 0;
-    x_T1_1_len = CosTransitPoint;
-    x_T1_2_beg = x_T1_1_beg + x_T1_1_len;
-    x_T1_2_len = len_LinearScan;
-    x_T1_3_beg = x_T1_2_beg + x_T1_2_len;
-    x_T1_3_len = CosTransitPoint;
-    x_T1_4_beg = x_T1_3_beg + x_T1_3_len;
-    x_T1_4_len = len_LinearScan;
-    x_T1_5_beg = x_T1_4_beg + x_T1_4_len;
-    x_T1_5_len = CosTransitPoint;
-
-    x_T2_beg = x_T1_beg + x_T1_len;
-    x_T2_len = ZeroBufferPoint;
-
-    x_T3_beg = x_T2_beg + x_T2_len;
-    x_T3_len = len_RampScan;
-    x_T3_1_beg = x_T3_beg;
-    x_T3_1_len = (len_RampScan - len_LinearScan) / 2;
-    x_T3_2_beg = x_T3_1_beg + x_T3_1_len;
-    x_T3_2_len = len_LinearScan;
-    x_T3_3_beg = x_T3_2_beg + x_T3_2_len;
-    x_T3_3_len = len_RampScan - len_LinearScan - x_T3_1_len;
-
-    x_T4_beg = x_T3_beg + x_T3_len;
-    x_T4_len = ZeroBufferPoint;
-    x_len = x_T1_len + x_T2_len + x_T3_len + x_T4_len;
-
-    y_T1_beg = 0;
-    y_T1_len = 2 * len_LinearScan + 3 * CosTransitPoint;
-    y_T1_1_beg = 0;
-    y_T1_1_len = CosTransitPoint;
-    y_T1_2_beg = y_T1_1_beg + y_T1_1_len;
-    y_T1_2_len = len_LinearScan;
-    y_T1_3_beg = y_T1_2_beg + y_T1_2_len;
-    y_T1_3_len = CosTransitPoint;
-    y_T1_4_beg = y_T1_3_beg + y_T1_3_len;
-    y_T1_4_len = len_LinearScan;
-    y_T1_5_beg = y_T1_4_beg + y_T1_4_len;
-    y_T1_5_len = CosTransitPoint;
-
-    y_T2_beg = y_T1_beg + y_T1_len;
-    y_T2_len = ZeroBufferPoint;
-
-    y_T3_beg = y_T2_beg + y_T2_len;
-    y_T3_len = CosTransitPoint;
-
-    y_TBscans_beg = y_T3_beg + y_T3_len;
-    y_TBScans_len = 2 * BScanlines;
-
-    y_T4_beg = y_TBscans_beg + y_TBScans_len;
-    y_T4_len = CosTransitPoint;
-
-    y_T5_beg = y_T4_beg + y_T4_len;
-    y_T5_len = ZeroBufferPoint;
-
-    y_len = y_T1_len + y_T2_len + y_T3_len + 2 * BScanlines + y_T4_len + y_T5_len;
-
-    if (pSegmentInfoX)
-        delete [] pSegmentInfoX;
-
-    pSegmentInfoX = new USB3020_SEGMENT_INFO[5];
-    pSegmentInfoX[0].SegmentSize = x_T1_len;
-    pSegmentInfoX[0].SegLoopCount = 1;
-    pSegmentInfoX[1].SegmentSize = x_T2_len;
-    pSegmentInfoX[1].SegLoopCount = CosTransitPoint / ZeroBufferPoint + 1;
-    pSegmentInfoX[2].SegmentSize = x_T3_len;
-    pSegmentInfoX[2].SegLoopCount = BScanlines * AVERAGE_NUM;
-    pSegmentInfoX[3].SegmentSize = x_T4_len - 2;
-    pSegmentInfoX[3].SegLoopCount = 16777215;
-    pSegmentInfoX[4].SegmentSize = 2;
-    pSegmentInfoX[4].SegLoopCount = 1;	// ��Ч
-
-    if (pSegmentInfoY)
-        delete [] pSegmentInfoY;
-    pSegmentInfoY = new USB3020_SEGMENT_INFO[6 + BScanlines];
-    pSegmentInfoY[0].SegmentSize = y_T1_len;
-    pSegmentInfoY[0].SegLoopCount = 1;
-    pSegmentInfoY[1].SegmentSize = y_T2_len;
-    pSegmentInfoY[1].SegLoopCount = 1;
-    pSegmentInfoY[2].SegmentSize = y_T3_len;
-    pSegmentInfoY[2].SegLoopCount = 1;
+    pSegmentInfoY = new USB3020_SEGMENT_INFO[BScanlines];
     for (unsigned int i = 0; i < BScanlines; ++i)
     {
-        pSegmentInfoY[3 + i].SegmentSize = 2;
-        pSegmentInfoY[3 + i].SegLoopCount = len_RampScan / 2 * AVERAGE_NUM;
+        pSegmentInfoY[i].SegmentSize = 2;
+        pSegmentInfoY[i].SegLoopCount = len_RampScan / 2 * AVERAGE_NUM;
     }
-    pSegmentInfoY[3 + BScanlines].SegmentSize = y_T4_len;
-    pSegmentInfoY[3 + BScanlines].SegLoopCount = 1;
-    pSegmentInfoY[4 + BScanlines].SegmentSize = y_T5_len - 2;
-    pSegmentInfoY[4 + BScanlines].SegLoopCount = 16777215;
-    pSegmentInfoY[5 + BScanlines].SegmentSize = 2;
-    pSegmentInfoY[5 + BScanlines].SegLoopCount = 1;
 
-    if (pSegmentInfoT)
-        delete [] pSegmentInfoT;
-    pSegmentInfoT = new USB3020_SEGMENT_INFO[5];
+    pSegmentInfoT = new USB3020_SEGMENT_INFO;
     pSegmentInfoT[0].SegmentSize = x_T1_len;
     pSegmentInfoT[0].SegLoopCount = 1;
-    pSegmentInfoT[1].SegmentSize = x_T2_len;
-    pSegmentInfoT[1].SegLoopCount = CosTransitPoint / ZeroBufferPoint + 1;
-    pSegmentInfoT[2].SegmentSize = x_T3_len;
-    pSegmentInfoT[2].SegLoopCount = BScanlines * AVERAGE_NUM;
-    pSegmentInfoT[3].SegmentSize = x_T4_len - 2;
-    pSegmentInfoT[3].SegLoopCount = 16777215;
-    pSegmentInfoT[4].SegmentSize = 2;
-    pSegmentInfoT[4].SegLoopCount = 1;	// ��Ч
+    //////////////not done///////////////
 
-    if (mode == MODE_2D_SCAN_REPEAT)
+        if (mode == MODE_2D_SCAN_REPEAT)
     {
         // Ѫ��OCT����ֶβ�������ά�ظ�
         pSegmentInfoX[0].SegmentSize = len_LinearScan + 2 * CosTransitPoint;
@@ -290,52 +134,88 @@ bool DA_USB3020::InitDAForScan(int mode, bool thenEnableDA)
             pSegmentInfoY[3 + i].SegLoopCount = len_RampScan / 2 * averageFrames;
             pSegmentInfoT[2].SegLoopCount = BScanlines * averageFrames;
         }
-
     }
 
+}
 
-    bStatus = USB3020_InitDeviceDA(hDevice, 5, pSegmentInfoX, pPara, xscanMode); // DA0
-    if (!bStatus)
-    {
+bool DA_USB3020::ConnectDA() ///
+{
+    hDevice = USB3020_CreateDevice(); // �����豸����
+    if(hDevice == INVALID_HANDLE_VALUE)
         return false;
-    }
-
-
-    bStatus = USB3020_InitDeviceDA(hDevice, 5, pSegmentInfoT, pPara, 1); // DA1
-    if (!bStatus)
+    else
     {
-        return false;
-    }
+        delete pParaDA_2D1D;
+        pParaDA_2D1D = new USB3020_PARA_DA();
+        pParaDA_2D1D->OutputRange = USB3020_OUTPUT_N5000_P5000mV; // ��5V������źŷ�Χ
+        pParaDA_2D1D->Frequency = SamplesPerSec;				// Ĭ�ϲ�����
+        pParaDA_2D1D->LoopCount = 0;							// ��Ч
+        pParaDA_2D1D->TriggerSource = USB3020_TRIGSRC_SOFT_DA;	// ��������
+        pParaDA_2D1D->TriggerMode = USB3020_TRIGMODE_BURST;		// ��������
+        pParaDA_2D1D->TriggerDir = USB3020_TRIGDIR_POSITIVE;	// �����ش���
+        pParaDA_2D1D->ClockSource = USB3020_CLOCKSRC_OUT;		// �ڲ�ʱ��
+        pParaDA_2D1D->bSingleOut = false;
 
-    bStatus = USB3020_InitDeviceDA(hDevice, 6 + BScanlines,
-        pSegmentInfoY, pPara, yscanMode); // DA3
-    if (!bStatus)
+        delete pParaDA_3D;
+        pParaDA_3D = new USB3020_PARA_DA();
+        pParaDA_3D->OutputRange = USB3020_OUTPUT_N5000_P5000mV; // ��5V������źŷ�Χ
+        pParaDA_3D->Frequency = SamplesPerSec;					// Ĭ�ϲ�����
+        pParaDA_3D->LoopCount = 0;								// ��Ч
+        pParaDA_3D->TriggerSource = USB3020_TRIGSRC_SOFT_DA;	// ��������
+        pParaDA_3D->TriggerMode = USB3020_TRIGMODE_SINGLE;		// ���δ���
+        pParaDA_3D->TriggerDir = USB3020_TRIGDIR_POSITIVE;		// �����ش���
+        pParaDA_3D->ClockSource = USB3020_CLOCKSRC_OUT;			// �ڲ�ʱ��
+        pParaDA_3D->bSingleOut = false;
+
+        // ��ʼ��Ĭ���ͷ�DA���������
+        DisableDA();
+
+        return true;
+    }
+}
+///
+bool DA_USB3020::WriteDataToDA()
+{
+    InitDAForScan(MODE_2D_CROSS_SCAN);
+    long nRetSizeWords;
+    nRetSizeWords = 0;
+    USB3020_WriteDeviceBulkDA(hDevice, pDataX, x_len, &nRetSizeWords, xscanMode);
+
+    nRetSizeWords = 0;
+    USB3020_WriteDeviceBulkDA(hDevice, pDataT, x_len, &nRetSizeWords, 1 );
+
+    nRetSizeWords = 0;
+    USB3020_WriteDeviceBulkDA(hDevice, pDataY, y_len, &nRetSizeWords, yscanMode);
+
+    return true;
+}
+
+bool DA_USB3020::InitDAForScan(int mode)
+{
+    PUSB3020_PARA_DA pPara = NULL;
+    if (mode == MODE_1D_SCAN || mode == MODE_2D_CROSS_SCAN || mode == MODE_2D_SCAN_REPEAT)
     {
-        return false;
+        pPara = pParaDA_2D1D;
     }
+    else if (mode == MODE_3D_SCAN || mode == MODE_3D_SCAN_REPEAT)
+    {
+        pPara = pParaDA_3D;
+    }
+    curMode = mode;
 
+    USB3020_InitDeviceDA(hDevice, 5, pSegmentInfoX, pPara, xscanMode); // DA0
+    USB3020_InitDeviceDA(hDevice, 5, pSegmentInfoT, pPara, 1); // DA1
+    USB3020_InitDeviceDA(hDevice, 6 + BScanlines, pSegmentInfoY, pPara, yscanMode); // DA3
 
-    if (thenEnableDA)
-        EnableDA();
     return true;
 
 }
 
 bool DA_USB3020::EnableDA()
 {
-    if(!USB3020_EnableDeviceDA(hDevice, xscanMode))
-    {
-        return false;
-    }
-    if(!USB3020_EnableDeviceDA(hDevice, 1))
-    {
-        return false;
-    }
-    if(!USB3020_EnableDeviceDA(hDevice, yscanMode))
-    {
-        return false;
-    }
-
+    USB3020_EnableDeviceDA(hDevice, xscanMode);
+    USB3020_EnableDeviceDA(hDevice, 1);
+    USB3020_EnableDeviceDA(hDevice, yscanMode);
 }
 
 bool DA_USB3020::DisableDA() ///
@@ -361,14 +241,7 @@ bool DA_USB3020::isConnected() ///
         return true;
 }
 
-bool DA_USB3020::isReadyForScan()
-{
-    if (isConnected() && pSegmentInfoX != NULL)
-        return true;
-    else
-        return false;
 
-}
 
 bool DA_USB3020::Start2DscanRepeat()
 {
@@ -376,6 +249,7 @@ bool DA_USB3020::Start2DscanRepeat()
     curStatus = STATUS_RUNNING;
     if (!InitDAForScan(MODE_2D_SCAN_REPEAT))
         return false;
+    EnableDA();
     //USB3020_SetDeviceTrigDA(hDevice, false, 0);
     //USB3020_SetDeviceTrigDA(hDevice, false, 2);
     //Sleep(50);
@@ -410,26 +284,10 @@ bool DA_USB3020::StopScan()
                 return false;
         }
         DisableDA();
-        ReleaseDA();
         curStatus = STATUS_STOP;
         return true;
     }
     return false;
-}
-
-void DA_USB3020::GetDAstatus(int channel, long& bTrigFlag, long& bConverting,
-                             long& nCurSegNum, long& nCurSegAddr,
-                             long& nCurLoopCount, long& nCurSegLoopCount)
-{
-    USB3020_GetDevStatusDA(hDevice, &m_DAStatus, channel);
-    bTrigFlag = m_DAStatus.bTrigFlag;
-    bConverting = m_DAStatus.bConverting;
-    nCurSegNum = m_DAStatus.nCurSegNum;
-    if (channel == 0 || channel == 1)
-        nCurSegNum += BScanlines + 1;
-    nCurSegAddr = m_DAStatus.nCurSegAddr;
-    nCurLoopCount = m_DAStatus.nCurLoopCount;
-    nCurSegLoopCount = m_DAStatus.nCurSegLoopCount;
 }
 
 bool DA_USB3020::Start3DscanRepeat()
@@ -438,6 +296,7 @@ bool DA_USB3020::Start3DscanRepeat()
     curStatus = STATUS_RUNNING;
     if (!InitDAForScan(MODE_3D_SCAN_REPEAT))
         return false;
+    EnableDA()
     USB3020_SetDeviceTrigDA(hDevice, true, xscanMode);
     return true;
 }
@@ -445,386 +304,20 @@ bool DA_USB3020::Start3DscanRepeat()
 DA_USB3020::~DA_USB3020()
 {
     DisableDA();
-    USB3020_ReleaseDevice(hDevice);   // �ͷ��豸����
-
-    if (pSegmentInfoX)
-        delete [] pSegmentInfoX;
-
-    if (pSegmentInfoY)
-        delete [] pSegmentInfoY;
-
-    if (pSegmentInfoT)
-        delete [] pSegmentInfoT;
-
-    if (pParaDA_2D1D)
-        delete pParaDA_2D1D;
-    if (pParaDA_3D)
-        delete pParaDA_3D;
-
-    if (pDataX)
-        delete [] pDataX;
-
-    if (pDataY)
-        delete [] pDataY;
-
-    if (pDataT)
-        delete [] pDataT;
+    USB3020_ReleaseDevice(hDevice);   
+    // 注意是不是数组 // not done //
+    delete [] pSegmentInfoX;
+    delete [] pSegmentInfoY;
+    delete [] pSegmentInfoT;
+    delete pParaDA_2D1D;
+    delete pParaDA_3D;
+    delete [] pDataX;
+    delete [] pDataY;
+    delete [] pDataT;
 
 }
 
-void DA_USB3020::GenDataX()
-{
-    //��ݲ�һ�����ڵĵ���
-    len_RampScan = long(SamplesPerSec * 1.0 / Frequency + 0.5);
-    // ��֤һ�����ڵĳ����ܹ���2����
-    if (len_RampScan % 2 != 0)
-    {
-        len_RampScan = len_RampScan - 1;
-    }
-    // ����ɨ������ĳ���
-    len_LinearScan = long(SamplesPerSec * duty_cycle / Frequency + 0.5);
-    CosTransitPoint = long(SamplesPerSec * 0.5 * (1-duty_cycle) / Frequency + 0.5);
-    //////////////////////////////////////////////////////////////////////////
-    // Xͨ���ܹ���Ϊ4�Σ�ÿ�ε���ʼ��ͳ��ȷֱ�������ʾ
-    //////////////////////////////////////////////////////////////////////////
-    x_T1_beg = 0;
-    x_T1_len = 2 * len_LinearScan + 3 * CosTransitPoint;
-    x_T1_1_beg = 0;
-    x_T1_1_len = CosTransitPoint;
-    x_T1_2_beg = x_T1_1_beg + x_T1_1_len;
-    x_T1_2_len = len_LinearScan;
-    x_T1_3_beg = x_T1_2_beg + x_T1_2_len;
-    x_T1_3_len = CosTransitPoint;
-    x_T1_4_beg = x_T1_3_beg + x_T1_3_len;
-    x_T1_4_len = len_LinearScan;
-    x_T1_5_beg = x_T1_4_beg + x_T1_4_len;
-    x_T1_5_len = CosTransitPoint;
-
-    x_T2_beg = x_T1_beg + x_T1_len;
-    x_T2_len = ZeroBufferPoint;
-
-    x_T3_beg = x_T2_beg + x_T2_len;
-    x_T3_len = len_RampScan;
-    x_T3_1_beg = x_T3_beg;
-    x_T3_1_len = (len_RampScan - len_LinearScan) / 2;
-    x_T3_2_beg = x_T3_1_beg + x_T3_1_len;
-    x_T3_2_len = len_LinearScan;
-    x_T3_3_beg = x_T3_2_beg + x_T3_2_len;
-    x_T3_3_len = len_RampScan - len_LinearScan - x_T3_1_len;
-
-    x_T4_beg = x_T3_beg + x_T3_len;
-    x_T4_len = ZeroBufferPoint;
-    x_len = x_T1_len + x_T2_len + x_T3_len + x_T4_len;
-
-    if (pDataX)
-        delete [] pDataX;
-    pDataX = new unsigned short[x_len];
-
-    for (unsigned int i = 0; i < x_len; ++i)
-    {
-        pDataX[i] = 0;
-    }
-
-    // x_T1_1: 0->-V CosTransit
-    for (unsigned int i = 0; i < x_T1_1_len; ++i)
-    {
-        pDataX[i + x_T1_1_beg] = short(32768 + 65536.0 * Voltage * 0.5 /
-            10000.0 * (cos(i * M_PI / (x_T1_1_len - 1)) - 1) + 0.5);
-    }
-
-    // x_T1_2: LinearScan -V->V
-    for (int i = 0; i < x_T1_2_len; ++i)
-    {
-        pDataX[i + x_T1_2_beg] = short(32768 + Voltage * 65536.0 / 10000.0 *
-            (2 * i - x_T1_2_len + 1) / (x_T1_2_len - 1) + 0.5);
-    }
-
-    // x_T1_3: V->0 CosTransit
-    for (unsigned int i = 0; i < x_T1_3_len; ++i)
-    {
-        pDataX[i + x_T1_3_beg] = short(32768 + 65536.0 * Voltage * 0.5 /
-            10000.0 * (cos(i * M_PI / (x_T1_1_len - 1)) + 1) + 0.5);
-    }
-
-    // x_T1_4 & x_T1_5 0V
-    for (unsigned int i = 0 ; i < x_T1_4_len + x_T1_5_len; ++i)
-    {
-        pDataX[i + x_T1_4_beg] = Voltage_0V;
-    }
-
-    // x_T2 0V
-    for (unsigned int i = 0; i < x_T2_len; ++i)
-    {
-        pDataX[i + x_T2_beg] = Voltage_0V;
-    }
-
-    // x_T3_1
-    for (unsigned int i = 0; i < x_T3_1_len; ++i)
-    {
-        pDataX[i + x_T3_1_beg] = short(32768 + Voltage * 65536.0 / 10000.0 *
-            cos(M_PI / 2 * (x_T3_1_len + i + 1) / x_T3_1_len) + 0.5);
-    }
-
-    // x_T3_2
-    for (int i = 0; i < x_T3_2_len; ++i)
-    {
-        pDataX[i + x_T3_2_beg] = short(32768 + Voltage * 65536.0 / 10000.0 *
-            (2 * i - x_T3_2_len + 1) / (x_T3_2_len - 1) + 0.5);
-    }
-
-    // x_T3_3
-    for (unsigned int i = 0; i < x_T3_3_len; ++i)
-    {
-        pDataX[i + x_T3_3_beg] = short(32768 + Voltage * 65536.0 / 10000.0 *
-            cos(M_PI / 2 * i / (x_T3_3_len - 1)) + 0.5);
-    }
-
-    // x_T4
-    for (unsigned int i = 0; i < x_T4_len; ++i)
-    {
-        pDataX[i + x_T4_beg] = Voltage_0V;
-    }
-
-    // д��ɨ���źŵ�����
-    std::ofstream file1("scanX.txt");
-    for (unsigned int i = 0; i < x_len; ++i)
-    {
-        file1 << pDataX[i] << std::endl;
-    }
-    file1.close();
-
-    if (pSegmentInfoX)
-        delete [] pSegmentInfoX;
-
-    pSegmentInfoX = new USB3020_SEGMENT_INFO[5];
-    pSegmentInfoX[0].SegmentSize = x_T1_len;
-    pSegmentInfoX[0].SegLoopCount = 1;
-    pSegmentInfoX[1].SegmentSize = x_T2_len;
-    pSegmentInfoX[1].SegLoopCount = CosTransitPoint / ZeroBufferPoint + 1;
-    pSegmentInfoX[2].SegmentSize = x_T3_len;
-    pSegmentInfoX[2].SegLoopCount = BScanlines * AVERAGE_NUM;
-    pSegmentInfoX[3].SegmentSize = x_T4_len - 2;
-    pSegmentInfoX[3].SegLoopCount = 16777215;
-    pSegmentInfoX[4].SegmentSize = 2;
-    pSegmentInfoX[4].SegLoopCount = 1;	// ��Ч
-
+short LinearCut(unsigned int start, unsigned int end, unsigned long length, unsigned int i){
+    return short(start + (end - start) / (length - 1) * i + 0.5);
 }
 
-void DA_USB3020::GenDataY()
-{
-    //////////////////////////////////////////////////////////////////////////
-    // Yͨ���ܹ���Ϊ5 + Bscan�Σ�Bscanÿ�γ���Ϊ2��ʣ��5�γ��ȷֱ�����
-    //////////////////////////////////////////////////////////////////////////
-    CosTransitPoint = long(SamplesPerSec * 0.5 * (1-duty_cycle) / Frequency + 0.5);
-    y_T1_beg = 0;
-    y_T1_len = 2 * len_LinearScan + 3 * CosTransitPoint;
-    y_T1_1_beg = 0;
-    y_T1_1_len = CosTransitPoint;
-    y_T1_2_beg = y_T1_1_beg + y_T1_1_len;
-    y_T1_2_len = len_LinearScan;
-    y_T1_3_beg = y_T1_2_beg + y_T1_2_len;
-    y_T1_3_len = CosTransitPoint;
-    y_T1_4_beg = y_T1_3_beg + y_T1_3_len;
-    y_T1_4_len = len_LinearScan;
-    y_T1_5_beg = y_T1_4_beg + y_T1_4_len;
-    y_T1_5_len = CosTransitPoint;
-
-    y_T2_beg = y_T1_beg + y_T1_len;
-    y_T2_len = ZeroBufferPoint;
-
-    y_T3_beg = y_T2_beg + y_T2_len;
-    y_T3_len = CosTransitPoint;
-
-    y_TBscans_beg = y_T3_beg + y_T3_len;
-    y_TBScans_len = 2 * BScanlines;
-
-    y_T4_beg = y_TBscans_beg + y_TBScans_len;
-    y_T4_len = CosTransitPoint;
-
-    y_T5_beg = y_T4_beg + y_T4_len;
-    y_T5_len = ZeroBufferPoint;
-
-    y_len = y_T1_len + y_T2_len + y_T3_len + 2 * BScanlines + y_T4_len + y_T5_len;
-
-    if (pDataY)
-        delete [] pDataY;
-    pDataY = new unsigned short[y_len];
-
-    for (unsigned int i = 0; i < y_len; ++i)
-    {
-        pDataY[i] = 0;
-    }
-
-    // y_T1_1 & x_T1_2 0V
-    for (unsigned int i = 0 ; i < y_T1_1_len + y_T1_2_len; ++i)
-    {
-        pDataY[i + y_T1_beg] = Voltage_0V;
-    }
-
-    // y_T1_3: 0->-V CosTransit
-    for (unsigned int i = 0; i < y_T1_3_len; ++i)
-    {
-        pDataY[i + y_T1_3_beg] = short(32768 + 65536.0 * Voltage * 0.5 /
-            10000.0 * (cos(i * M_PI / (y_T1_3_len - 1)) - 1) + 0.5);
-    }
-
-    // y_T1_4: LinearScan -V->V
-    for (int i = 0; i < y_T1_4_len; ++i)
-    {
-        pDataY[i + y_T1_4_beg] = short(32768 + Voltage * 65536.0 / 10000.0 *
-            (2 * i - y_T1_4_len + 1) / (y_T1_4_len - 1) + 0.5);
-    }
-
-    // y_T1_5: V->0 CosTransit
-    for (unsigned int i = 0; i < y_T1_5_len; ++i)
-    {
-        pDataY[i + y_T1_5_beg] = short(32768 + 65536.0 * Voltage * 0.5 /
-            10000.0 * (cos(i * M_PI / (y_T1_5_len - 1)) + 1) + 0.5);
-    }
-
-    // y_T2 0V
-    for (unsigned int i = 0; i < y_T2_len; ++i)
-    {
-        pDataY[i + y_T2_beg] = Voltage_0V;
-    }
-
-    // Y_T3 0->-V CosTransit
-    for (unsigned int i = 0; i < y_T3_len; ++i)
-    {
-        pDataY[i + y_T3_beg] = short(32768 + 65536.0 * Voltage * 0.5 /
-            10000.0 * (cos(i * M_PI / (y_T3_len - 1)) - 1) + 0.5);
-    }
-
-    // TBscans
-    int BB = BScanlines;
-    for (int i = 0; i < BScanlines; ++i)
-    {
-        pDataY[2 * i + y_TBscans_beg] = pDataY[2 * i + 1 + y_TBscans_beg] =
-            short(32768 + Voltage * 65536.0 / 10000.0 *
-            (2 * i - BB + 1) / (BB - 1) + 0.5);
-    }
-
-    // Y_T4 V->0 CosTransit
-    for (unsigned int i = 0; i < y_T4_len; ++i)
-    {
-        pDataY[i + y_T4_beg] = short(32768 + 65536.0 * Voltage * 0.5 /
-            10000.0 * (cos(i * M_PI / (y_T4_len - 1)) + 1) + 0.5);
-    }
-
-    // y_T5 0V
-    for (unsigned int i = 0; i < y_T5_len; ++i)
-    {
-        pDataY[i + y_T5_beg] = Voltage_0V;
-    }
-
-    // д��ɨ���źŵ�����
-    std::ofstream file2("scanY.txt");
-    for (unsigned int i = 0; i < y_len; ++i)
-    {
-        file2 << pDataY[i] << std::endl;
-    }
-    file2.close();
-
-    if (pSegmentInfoY)
-        delete [] pSegmentInfoY;
-    pSegmentInfoY = new USB3020_SEGMENT_INFO[6 + BScanlines];
-    pSegmentInfoY[0].SegmentSize = y_T1_len;
-    pSegmentInfoY[0].SegLoopCount = 1;
-    pSegmentInfoY[1].SegmentSize = y_T2_len;
-    pSegmentInfoY[1].SegLoopCount = 1;
-    pSegmentInfoY[2].SegmentSize = y_T3_len;
-    pSegmentInfoY[2].SegLoopCount = 1;
-    for (unsigned int i = 0; i < BScanlines; ++i)
-    {
-        pSegmentInfoY[3 + i].SegmentSize = 2;
-        pSegmentInfoY[3 + i].SegLoopCount = len_RampScan / 2 * AVERAGE_NUM;
-    }
-    pSegmentInfoY[3 + BScanlines].SegmentSize = y_T4_len;
-    pSegmentInfoY[3 + BScanlines].SegLoopCount = 1;
-    pSegmentInfoY[4 + BScanlines].SegmentSize = y_T5_len - 2;
-    pSegmentInfoY[4 + BScanlines].SegLoopCount = 16777215;
-    pSegmentInfoY[5 + BScanlines].SegmentSize = 2;
-    pSegmentInfoY[5 + BScanlines].SegLoopCount = 1;
-
-}
-
-void DA_USB3020::GenDataT()
-{
-    //////////////////////////////////////////////////////////////////////////
-    // Tͨ���ܹ���Ϊ4�Σ�ÿ�ε���ʼ��ͳ��Ȳο�Xͨ��
-    //////////////////////////////////////////////////////////////////////////
-    CosTransitPoint = long(SamplesPerSec * 0.5 * (1-duty_cycle) / Frequency + 0.5);
-    if (pDataT)
-        delete [] pDataT;
-    pDataT = new unsigned short[x_T1_len + x_T2_len + x_T3_len + x_T4_len];
-
-    for (unsigned int i = 0; i < x_T1_len + x_T2_len + x_T3_len + x_T4_len; ++i)
-    {
-        pDataT[i] = Voltage_0V;
-    }
-
-//	// T1
-//	for (unsigned int i = 0; i < x_T1_2_len; ++i)
-//	{
-//		pDataT[i + x_T1_2_beg] = Voltage_5V;
-//		//pDataT[i + x_T1_4_beg] = Voltage_0V;
-
-//	}
-
-//	for (unsigned int i = 0; i < x_T1_4_len; ++i)
-//	{
-//		pDataT[i + x_T1_4_beg] = Voltage_5V;
-//	}
-
-
-//	// T3
-//	for (unsigned int i = 0; i < x_T3_2_len; ++i)
-//	{
-//		pDataT[i + x_T3_2_beg] = Voltage_5V;
-//	}
-
-
-    unsigned int delay1 = 82;
-    // T1
-    for (unsigned int i = delay1; i < x_T1_2_len; ++i)
-    {
-        pDataT[i + x_T1_2_beg] = Voltage_5V;
-        //pDataT[i + x_T1_4_beg] = Voltage_0V;
-
-    }
-
-    for (unsigned int i = delay1; i < x_T1_4_len; ++i)
-    {
-        pDataT[i + x_T1_4_beg] = Voltage_5V;
-    }
-
-    unsigned int delay2 = 82;
-    // T3
-    for (unsigned int i = delay2; i < x_T3_2_len; ++i)
-    {
-        pDataT[i + x_T3_2_beg] = Voltage_5V;
-    }
-
-    // д��ɨ���źŵ�����
-    std::ofstream file3("scanT.txt");
-    for (unsigned int i = 0; i < x_T1_len + x_T2_len + x_T3_len + x_T4_len; ++i)
-    {
-        file3 << pDataT[i] << std::endl;
-    }
-    file3.close();
-
-    if (pSegmentInfoT)
-        delete [] pSegmentInfoT;
-    pSegmentInfoT = new USB3020_SEGMENT_INFO[5];
-    pSegmentInfoT[0].SegmentSize = x_T1_len;
-    pSegmentInfoT[0].SegLoopCount = 1;
-    pSegmentInfoT[1].SegmentSize = x_T2_len;
-    pSegmentInfoT[1].SegLoopCount = CosTransitPoint / ZeroBufferPoint + 1;
-    pSegmentInfoT[2].SegmentSize = x_T3_len;
-    pSegmentInfoT[2].SegLoopCount = BScanlines * AVERAGE_NUM;
-    pSegmentInfoT[3].SegmentSize = x_T4_len - 2;
-    pSegmentInfoT[3].SegLoopCount = 16777215;
-    pSegmentInfoT[4].SegmentSize = 2;
-    pSegmentInfoT[4].SegLoopCount = 1;	// ��Ч
-
-}
