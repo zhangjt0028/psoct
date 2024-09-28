@@ -7,9 +7,9 @@
 using U32 = uint32_t;
 using U16 = uint16_t;
 
-class DataCaptureThread{
+class DataCapture{
     public:
-        DataCaptureThread(){};
+        DataCapture();
         std::vector<U16*>		m_volumeMemBuffer;		// 整体缓存1s数据，大小6.48G
         U32						m_bytesPerBuffer;		// 一个BUFFer占用内存240M
         int						m_curIndexInMemBuffer;	// 代表最新的正在采集的数据的指针地址
@@ -20,11 +20,12 @@ class DataCaptureThread{
         U32						m_recordperbuffer;		// 一个体有多少个Bscan，600
         U32						m_samplesPerRecord;		// 一个Bscan有多少数据400*500
         U32						m_samplesPerBuffer;		// recordperbuffer * samplesPerRecord
-        U32						m_channelMask;			// CHANNEL_A
         U32						m_recordsPerAcquisition;// 0x7FFFFFFF 一直采集
         U32						m_admaFlags;			// ADMA_EXTERNAL_STARTCAPTURE | ADMA_NPT
 
         int						bufferCompletedLastTime;
         float					VolumePerSec;
-        ~DataCaptureThread(){};
+
+        static int BUFFER_COUNT;
+        void EnableCC();
 };

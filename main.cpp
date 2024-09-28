@@ -19,53 +19,11 @@ std::mutex queueMutex; //保护数据队列的互斥锁
 std::condition_variable dataCondition; //通知数据可用
 std::atomic<bool> isRunning(true); //运行状态
 
-
-
-int main()
-{
-    //查询采集卡
-    if (AlazarGetBoardBySystemID(1, 1))
-    {
-        std::cout<<"找到采集卡 "<<std::endl;
-    }
-
-    //连接DA卡和初始化相关的系数
-    DA_USB3020* pDAUSB3020 = new DA_USB3020(); 
-    if (pDAUSB3020->isConnected())
-    {
-        std::cout<<"DA卡初始化成功"<<std::endl;
-    }
-    //pDAUSB3020->DisableDA();
-    pDAUSB3020->CalculateDAdata(); 
-    bool br = pDAUSB3020->WriteDataToDA();
-    if (br)
-    {
-        std::cout<<"DA卡连接成功"<<std::endl;
-    }
-
-    int ScanMode = 22;
-
-    StartAlazarADcapture(); //采集卡连接
-
-    if(ScanMode == 22)//二维
-    {
-        pDAUSB3020->Start2DscanRepeat();
-    }
-    else if(ScanMode == 32)//三维
-    {
-        pDAUSB3020->Start3DscanRepeat();
-    } ///DAStartScan
-
-}
-
-
 void dataAcquisition() {
-    // 初始化 DA 卡
-    initializeDACard(); // 根据你的 DA 卡API进行初始化
-
     while (isRunning) {
         // 等待触发信号
         waitForTrigger(); // 根据你的 DA 卡API实现等待触发的逻辑
+        pDAUSB3020->EnableDA(); //DAStartScan
 
         int data;
         // 读取采集卡的数据
@@ -101,6 +59,24 @@ void dataProcessing() {
 }
 
 int main() {
+    //查询采集卡
+    if (AlazarGetBoardBySystemID(1, 1))
+    {
+        std::cout<<"找到采集卡 "<<std::endl;
+    }
+
+    InitCaptureCard(); //采集卡连接
+
+    //DA卡初始化
+    int ScanMode = 2;
+    DA_USB3020* pDAUSB3020 = new DA_USB3020(); 
+    pDAUSB3020->CalculateDAdata(); 
+    bool br = pDAUSB3020->InitDAForScan(ScanMode);
+    if (br)
+    {
+        std::cout<<"DA卡连接成功"<<std::endl;
+    }
+
     std::thread acquisitionThread(dataAcquisition);
     std::thread processingThread(dataProcessing);
 

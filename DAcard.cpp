@@ -1,5 +1,4 @@
 #include "DAcard.h"
-//#include "mainwidget.h"
 
 DA_USB3020::DA_USB3020()
 {
@@ -18,14 +17,11 @@ DA_USB3020::DA_USB3020()
     pSegmentInfoX = NULL;
     pSegmentInfoY = NULL;
     pSegmentInfoT = NULL;
-    pParaDA_2D1D = NULL;
-    pParaDA_3D = NULL;
-    pParaDA_2D_Repeat = NULL;
-    pParaDA_3D_Repeat = NULL;
-    hDevice = INVALID_HANDLE_VALUE;
+
     curStatus = STATUS_STOP;
 
-    ConnectDA();
+    hDevice = USB3020_CreateDevice();
+    DisableDA();
 }
 
 void DA_USB3020::CalculateDAdata()
@@ -138,45 +134,30 @@ void DA_USB3020::CalculateDAdata()
 
 }
 
-bool DA_USB3020::ConnectDA() ///
+bool DA_USB3020::InitDAForScan(int mode)
 {
-    hDevice = USB3020_CreateDevice(); // �����豸����
-    if(hDevice == INVALID_HANDLE_VALUE)
-        return false;
-    else
+    PUSB3020_PARA_DA pPara = NULL;
+    pPara->OutputRange = USB3020_OUTPUT_N5000_P5000mV; 
+    pPara->Frequency = SamplesPerSec;				
+    pPara->LoopCount = 0;							
+    pPara->TriggerSource = USB3020_TRIGSRC_SOFT_DA;	
+    pPara->TriggerDir = USB3020_TRIGDIR_POSITIVE;	
+    pPara->ClockSource = USB3020_CLOCKSRC_OUT;		
+    pPara->bSingleOut = false;
+    if (mode == MODE_2D_SCAN_REPEAT)
     {
-        delete pParaDA_2D1D;
-        pParaDA_2D1D = new USB3020_PARA_DA();
-        pParaDA_2D1D->OutputRange = USB3020_OUTPUT_N5000_P5000mV; // ��5V������źŷ�Χ
-        pParaDA_2D1D->Frequency = SamplesPerSec;				// Ĭ�ϲ�����
-        pParaDA_2D1D->LoopCount = 0;							// ��Ч
-        pParaDA_2D1D->TriggerSource = USB3020_TRIGSRC_SOFT_DA;	// ��������
-        pParaDA_2D1D->TriggerMode = USB3020_TRIGMODE_BURST;		// ��������
-        pParaDA_2D1D->TriggerDir = USB3020_TRIGDIR_POSITIVE;	// �����ش���
-        pParaDA_2D1D->ClockSource = USB3020_CLOCKSRC_OUT;		// �ڲ�ʱ��
-        pParaDA_2D1D->bSingleOut = false;
-
-        delete pParaDA_3D;
-        pParaDA_3D = new USB3020_PARA_DA();
-        pParaDA_3D->OutputRange = USB3020_OUTPUT_N5000_P5000mV; // ��5V������źŷ�Χ
-        pParaDA_3D->Frequency = SamplesPerSec;					// Ĭ�ϲ�����
-        pParaDA_3D->LoopCount = 0;								// ��Ч
-        pParaDA_3D->TriggerSource = USB3020_TRIGSRC_SOFT_DA;	// ��������
-        pParaDA_3D->TriggerMode = USB3020_TRIGMODE_SINGLE;		// ���δ���
-        pParaDA_3D->TriggerDir = USB3020_TRIGDIR_POSITIVE;		// �����ش���
-        pParaDA_3D->ClockSource = USB3020_CLOCKSRC_OUT;			// �ڲ�ʱ��
-        pParaDA_3D->bSingleOut = false;
-
-        // ��ʼ��Ĭ���ͷ�DA���������
-        DisableDA();
-
-        return true;
+        pPara->TriggerMode = USB3020_TRIGMODE_BURST;		
     }
-}
-///
-bool DA_USB3020::WriteDataToDA()
-{
-    InitDAForScan(MODE_2D_CROSS_SCAN);
+    else if (mode == MODE_3D_SCAN_REPEAT)
+    {
+        pPara->TriggerMode = USB3020_TRIGMODE_SINGLE;
+    }
+    curMode = mode;
+
+    USB3020_InitDeviceDA(hDevice, 5, pSegmentInfoX, pPara, xscanMode); // DA0
+    USB3020_InitDeviceDA(hDevice, 5, pSegmentInfoT, pPara, 1); // DA1
+    USB3020_InitDeviceDA(hDevice, 6 + BScanlines, pSegmentInfoY, pPara, yscanMode); // DA3
+
     long nRetSizeWords;
     nRetSizeWords = 0;
     USB3020_WriteDeviceBulkDA(hDevice, pDataX, x_len, &nRetSizeWords, xscanMode);
@@ -186,27 +167,6 @@ bool DA_USB3020::WriteDataToDA()
 
     nRetSizeWords = 0;
     USB3020_WriteDeviceBulkDA(hDevice, pDataY, y_len, &nRetSizeWords, yscanMode);
-
-    return true;
-}
-
-bool DA_USB3020::InitDAForScan(int mode)
-{
-    PUSB3020_PARA_DA pPara = NULL;
-    if (mode == MODE_1D_SCAN || mode == MODE_2D_CROSS_SCAN || mode == MODE_2D_SCAN_REPEAT)
-    {
-        pPara = pParaDA_2D1D;
-    }
-    else if (mode == MODE_3D_SCAN || mode == MODE_3D_SCAN_REPEAT)
-    {
-        pPara = pParaDA_3D;
-    }
-    curMode = mode;
-
-    USB3020_InitDeviceDA(hDevice, 5, pSegmentInfoX, pPara, xscanMode); // DA0
-    USB3020_InitDeviceDA(hDevice, 5, pSegmentInfoT, pPara, 1); // DA1
-    USB3020_InitDeviceDA(hDevice, 6 + BScanlines, pSegmentInfoY, pPara, yscanMode); // DA3
-
     return true;
 
 }
@@ -216,45 +176,21 @@ bool DA_USB3020::EnableDA()
     USB3020_EnableDeviceDA(hDevice, xscanMode);
     USB3020_EnableDeviceDA(hDevice, 1);
     USB3020_EnableDeviceDA(hDevice, yscanMode);
+    
+    USB3020_SetDeviceTrigDA(hDevice, true, xscanMode);
 }
 
-bool DA_USB3020::DisableDA() ///
+bool DA_USB3020::DisableDA()
 {
     USB3020_DisableDeviceDA(hDevice, 0);
     USB3020_DisableDeviceDA(hDevice, 1);
     USB3020_DisableDeviceDA(hDevice, 2);
     USB3020_DisableDeviceDA(hDevice, 3);
+
     USB3020_ReleaseDeviceDA(hDevice, 0);
     USB3020_ReleaseDeviceDA(hDevice, 1);
     USB3020_ReleaseDeviceDA(hDevice, 2);
     USB3020_ReleaseDeviceDA(hDevice, 3);    
-    return true;
-}
-
-
-
-bool DA_USB3020::isConnected() ///
-{
-    if(hDevice == INVALID_HANDLE_VALUE)
-        return false;
-    else
-        return true;
-}
-
-
-
-bool DA_USB3020::Start2DscanRepeat()
-{
-    curMode = MODE_2D_SCAN_REPEAT;
-    curStatus = STATUS_RUNNING;
-    if (!InitDAForScan(MODE_2D_SCAN_REPEAT))
-        return false;
-    EnableDA();
-    //USB3020_SetDeviceTrigDA(hDevice, false, 0);
-    //USB3020_SetDeviceTrigDA(hDevice, false, 2);
-    //Sleep(50);
-    USB3020_SetDeviceTrigDA(hDevice, true, xscanMode);
-
     return true;
 }
 
@@ -288,17 +224,6 @@ bool DA_USB3020::StopScan()
         return true;
     }
     return false;
-}
-
-bool DA_USB3020::Start3DscanRepeat()
-{
-    curMode = MODE_3D_SCAN_REPEAT;
-    curStatus = STATUS_RUNNING;
-    if (!InitDAForScan(MODE_3D_SCAN_REPEAT))
-        return false;
-    EnableDA()
-    USB3020_SetDeviceTrigDA(hDevice, true, xscanMode);
-    return true;
 }
 
 DA_USB3020::~DA_USB3020()

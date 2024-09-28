@@ -3,23 +3,6 @@
 #include <cmath>        // std::abs
 #include <iostream>
 
-HANDLE mainWidget::m_AlazarBoardHandle;
-
-int mainWidget::MAX_NUM_SAVED_VOLUMEM_IN_MEMORY  = 800;
-int mainWidget::MAX_NUM_SAVED_VOLUMEM_IN_MEMORY3D = 3200;
-int mainWidget::m_sampleLength = 1152;
-//int mainWidget::m_sampleLength = 1152;
-int mainWidget::captureflag = 0;//0表示该状态不进行采集
-int mainWidget::scanMode = 22; //22 or 32
-int mainWidget::xMode = 0; //fast = 0, slow = 2
-int mainWidget::yMode = 2;
-bool mainWidget::Bflag = true;
-bool mainWidget::Wflag = true;
-
-
-using namespace cv;
-
-
 mainWidget::mainWidget(QWidget *parent):
     QWidget(parent),
     ui(new Ui::mainWidget)
@@ -64,7 +47,7 @@ mainWidget::~mainWidget()
     firstThread->quit();
     firstThread->wait();
 
-    killTimer(timerId1);
+
     killTimer(timerId2);
     killTimer(timerId3);
 }
@@ -204,7 +187,7 @@ void mainWidget::OCTplots()
 }
 
 
-void mainWidget::saveclicked()
+void mainWidget::save()
 {
 
     if (mainWidget::scanMode == 2)
@@ -328,7 +311,7 @@ void mainWidget::saveclicked()
 
 }
 
-void mainWidget::on_background_clicked()
+void mainWidget::background()
 {
     
     int curIndexInMEMbuffer = 0;
@@ -362,7 +345,7 @@ void mainWidget::on_background_clicked()
 
 }
 
-void mainWidget::on_addWindow_clicked()
+void mainWidget::addWindow()
 {
     //载入hamming
     //hammingwindow[i] = 0.54-0.46*cos(2 * 3.1415926 * i / mainWidget::m_sampleLength);
