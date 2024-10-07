@@ -1,15 +1,16 @@
 #include "DAcard.h"
+#include <iostream>
+using namespace std;
 
 DA_USB3020::DA_USB3020()
 {
-    BScanPerSec = 225;
-    BScanlines = 800;
-	SamplesPerSec = 901000; ////////查一下原来是多少//////////
+    BScanPerSec = 20;
+    BScanlines = 100;
+	SamplesPerSec = 1000000; ////////查一下原来是多少//////////
 	ZeroBufferPoint = 10; // 0V电压的点数
-    xscanMode = 0;
-    yscanMode = 2;
-    len_Total = long(SamplesPerSec * 1.0 / BScanPerSec + 0.5);
-    len_Transit = long(SamplesPerSec * 0.5 * (1-0.9) / BScanPerSec + 0.5);
+
+    len_Total = long(SamplesPerSec * 1.0 / BScanPerSec + 0.5); 
+    len_Transit = long(SamplesPerSec * 0.5 * (1-0.9) / BScanPerSec + 0.5); 
     len_Scan = len_Total - len_Transit * 2;
 
     pDataX = NULL;
@@ -80,59 +81,61 @@ void DA_USB3020::CalculateDAdata()
 
     }
 
-    delete pSegmentInfoX;
-    delete pSegmentInfoY;
-    delete pSegmentInfoT;
-    pSegmentInfoX = new USB3020_SEGMENT_INFO;
-    pSegmentInfoY = new USB3020_SEGMENT_INFO;
-    pSegmentInfoT = new USB3020_SEGMENT_INFO;
+    delete [] pSegmentInfoX;
+    delete [] pSegmentInfoY;
+    delete [] pSegmentInfoT;
+    pSegmentInfoX = new USB3020_SEGMENT_INFO[1];
+    pSegmentInfoY = new USB3020_SEGMENT_INFO[1];
+    pSegmentInfoT = new USB3020_SEGMENT_INFO[1];
 
-    pSegmentInfoX.SegmentSize = len_Total + ZeroBufferPoint;
-    pSegmentInfoX.SegLoopCount = BScanlines * AVERAGE_NUM;
-    pSegmentInfoT.SegmentSize = len_Total + ZeroBufferPoint;
-    pSegmentInfoT.SegLoopCount = BScanlines * AVERAGE_NUM;
-    pSegmentInfoY.SegmentSize = BScanlines * AVERAGE_NUM;
-    pSegmentInfoY.SegLoopCount = 1;
+    pSegmentInfoX[0].SegmentSize = len_Total + ZeroBufferPoint;
+    pSegmentInfoX[0].SegLoopCount = BScanlines * AVERAGE_NUM;
+    pSegmentInfoT[0].SegmentSize = len_Total + ZeroBufferPoint;
+    pSegmentInfoT[0].SegLoopCount = BScanlines * AVERAGE_NUM;
+    pSegmentInfoY[0].SegmentSize = BScanlines * AVERAGE_NUM;
+    pSegmentInfoY[0].SegLoopCount = 1;
 }
 
 bool DA_USB3020::InitDAForScan()
 {
-    PUSB3020_PARA_DA pPara = NULL;
+    PUSB3020_PARA_DA pPara = new USB3020_PARA_DA;
     pPara->OutputRange = USB3020_OUTPUT_N5000_P5000mV; 
     pPara->Frequency = SamplesPerSec;				
     pPara->LoopCount = 0;							
     pPara->TriggerSource = USB3020_TRIGSRC_SOFT_DA;	
     pPara->TriggerDir = USB3020_TRIGDIR_POSITIVE;	
-    pPara->ClockSource = USB3020_CLOCKSRC_OUT;		
+    pPara->ClockSource = USB3020_CLOCKSRC_IN;		
     pPara->bSingleOut = false;
-    pPara->TriggerMode = USB3020_TRIGMODE_SINGLE;
+    pPara->TriggerMode = USB3020_TRIGMODE_BURST;
 
-    USB3020_InitDeviceDA(hDevice, 1, pSegmentInfoX, pPara, xscanMode); // DA0
+    USB3020_InitDeviceDA(hDevice, 1, pSegmentInfoX, pPara, 0); // DA0
     USB3020_InitDeviceDA(hDevice, 1, pSegmentInfoT, pPara, 1); // DA1
 
-    pPara->Frequency = BsacnPerSec;
-    USB3020_InitDeviceDA(hDevice, 1, pSegmentInfoY, pPara, yscanMode); // DA3
+    pPara->Frequency = BScanPerSec;
+    USB3020_InitDeviceDA(hDevice, 1, pSegmentInfoY, pPara, 2); // DA3
 
     long nRetSizeWords;
     nRetSizeWords = 0;
-    USB3020_WriteDeviceBulkDA(hDevice, pDataX, len_Total + ZeroBufferPoint, &nRetSizeWords, xscanMode);
-
+    USB3020_WriteDeviceBulkDA(hDevice, pDataX, len_Total + ZeroBufferPoint, &nRetSizeWords, 0);
+    
     nRetSizeWords = 0;
     USB3020_WriteDeviceBulkDA(hDevice, pDataT, len_Total + ZeroBufferPoint, &nRetSizeWords, 1 );
 
     nRetSizeWords = 0;
-    USB3020_WriteDeviceBulkDA(hDevice, pDataY, BScanlines * AVERAGE_NUM, &nRetSizeWords, yscanMode);
+    USB3020_WriteDeviceBulkDA(hDevice, pDataY, BScanlines * AVERAGE_NUM, &nRetSizeWords, 2);
     return true;
 
 }
 
 bool DA_USB3020::EnableDA()
 {
-    USB3020_EnableDeviceDA(hDevice, xscanMode);
+    USB3020_EnableDeviceDA(hDevice, 0);
     USB3020_EnableDeviceDA(hDevice, 1);
-    USB3020_EnableDeviceDA(hDevice, yscanMode);
+    USB3020_EnableDeviceDA(hDevice, 2);
     /////////////////not done///////////////////////////
-    USB3020_SetDeviceTrigDA(hDevice, true, xscanMode);
+    USB3020_SetDeviceTrigDA(hDevice, true, 0);
+    USB3020_SetDeviceTrigDA(hDevice, true, 1);
+    return true;
 }
 
 bool DA_USB3020::DisableDA()
@@ -163,8 +166,10 @@ DA_USB3020::~DA_USB3020()
 
 }
 
-short LinearCut(unsigned int start, unsigned int end, unsigned long length, unsigned int i)
+short DA_USB3020::LinearCut(unsigned int start, unsigned int end, unsigned long length, unsigned int i)
 {
+    short a = short(start + (end - start) / (length - 1) * i + 0.5);
+    std::cout<<a<<std::endl;
     return short(start + (end - start) / (length - 1) * i + 0.5);
 }
 

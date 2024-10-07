@@ -4,21 +4,14 @@
 #include <windows.h>
 #include <string>
 
-//#include "mainwidget.h"
-
-#ifndef M_PI
-#define M_PI 3.1415926535897932384626433832795
-#endif
-
 class DA_USB3020
 {
 public:
-	const static short Voltage_0V = 32768; // 0V �͵�ƽ
-    const static short Voltage_5V = 65535; // 5V �ߵ�ƽ
+	const static short Voltage_0V = 32768; 
+    const static short Voltage_5V = 65535; 
     const static short Voltage_5V_neg = 0;
-	const static int AVERAGE_NUM = 3;	// Ѫ���㷨ƽ������
+	const static int AVERAGE_NUM = 3;	
 
-	// 15us ����ʱ�䣬2D crossɨ��ʱ�м�����������150��
     DA_USB3020();
 	void CalculateDAdata();
 	bool InitDAForScan();
@@ -39,12 +32,12 @@ private:
 	unsigned short* pDataT;
 	unsigned short* pDataY;
 
-	HANDLE hDevice;					// �豸������
+	HANDLE hDevice;					
 
 	unsigned int BScanlines;
-	unsigned int BsacnPerSec;
-	unsigned long SamplesPerSec; // 1M������
-	unsigned long ZeroBufferPoint; // 0V��ѹ�ĵ���������ʱ��0.1ms
+	unsigned int BScanPerSec;
+	unsigned long SamplesPerSec; 
+	unsigned long ZeroBufferPoint;
     
 	int xscanMode;
     int yscanMode;
