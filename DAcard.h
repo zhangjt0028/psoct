@@ -13,56 +13,45 @@
 class DA_USB3020
 {
 public:
-	const static short Voltage_0V = 32768; // 0V µÍµçÆ½
-    const static short Voltage_5V = 65535; // 5V ¸ßµçÆ½
+	const static short Voltage_0V = 32768; // 0V ï¿½Íµï¿½Æ½
+    const static short Voltage_5V = 65535; // 5V ï¿½ßµï¿½Æ½
     const static short Voltage_5V_neg = 0;
-	
-	const static int MODE_2D_SCAN_REPEAT = 2;
-	const static int MODE_3D_SCAN_REPEAT = 3;
+	const static int AVERAGE_NUM = 3;	// Ñªï¿½ï¿½ï¿½ã·¨Æ½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
-	const static int STATUS_RUNNING = 1;
-	const static int STATUS_STOP = 0;
-
-	const static int AVERAGE_NUM = 4;	// Ñª¹ÜËã·¨Æ½¾ù´ÎÊý
-
-	// 15us »ý·ÖÊ±¼ä£¬2D crossÉ¨ÃèÊ±ÖÐ¼ä¿ÕÓàµÄÏßÊýÊÇ150Ïß
+	// 15us ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ä£¬2D crossÉ¨ï¿½ï¿½Ê±ï¿½Ð¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½150ï¿½ï¿½
     DA_USB3020();
 	void CalculateDAdata();
-	bool InitDAForScan(int mode);
+	bool InitDAForScan();
 	bool EnableDA();
 	bool DisableDA();
-	bool StopScan();
 	~DA_USB3020();
 
 protected:
 
 private:
-	int curMode;
-	int curStatus;
 
 	PUSB3020_SEGMENT_INFO	pSegmentInfoX;
 	PUSB3020_SEGMENT_INFO	pSegmentInfoY;
 	PUSB3020_SEGMENT_INFO	pSegmentInfoT;
 
-	HANDLE hDevice;					// Éè±¸¶ÔÏó¾ä±ú
-	USB3020_STATUS_DA m_DAStatus;	// DA×´Ì¬
 
-	short LinearCut(unsigned int start, unsigned int end, unsigned long length, unsigned int i);
 	unsigned short* pDataX;
 	unsigned short* pDataT;
 	unsigned short* pDataY;
 
-	unsigned int Voltage;
-	double Frequency;
-	double duty_cycle;
-	unsigned int BScanlines;
+	HANDLE hDevice;					// ï¿½è±¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
-	unsigned long SamplesPerSec; // 1M²ÉÑùÂÊ
-	unsigned long ZeroBufferPoint; // 0VµçÑ¹µÄµãÊý£¬³ÖÐøÊ±¼ä0.1ms
-	unsigned long len_Transit;
-    int xscanMode;
+	unsigned int BScanlines;
+	unsigned int BsacnPerSec;
+	unsigned long SamplesPerSec; // 1Mï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	unsigned long ZeroBufferPoint; // 0Vï¿½ï¿½Ñ¹ï¿½Äµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½0.1ms
+    
+	int xscanMode;
     int yscanMode;
 
+	unsigned long len_Transit;
 	unsigned long len_Total;
 	unsigned long len_Scan;
+
+	short LinearCut(unsigned int start, unsigned int end, unsigned long length, unsigned int i);
 };

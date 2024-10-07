@@ -59,13 +59,12 @@ void dataProcessing() {
 }
 
 int main() {
-    //查询采集卡
-    if (AlazarGetBoardBySystemID(1, 1))
+
+    if (DataCapture())
     {
         std::cout<<"找到采集卡 "<<std::endl;
     }
 
-    InitCaptureCard(); //采集卡连接
 
     //DA卡初始化
     int ScanMode = 2;
