@@ -7,9 +7,9 @@
 class DA_USB3020
 {
 public:
-	const static short Voltage_0V = 32768; 
-    const static short Voltage_5V = 65535; 
-    const static short Voltage_5V_neg = 0;
+	const static int Voltage_0V = 32768; 
+    const static int Voltage_5V = 65535; 
+    const static int Voltage_5V_neg = 0;
 	const static int AVERAGE_NUM = 3;	
 
     DA_USB3020();
@@ -34,17 +34,14 @@ private:
 
 	HANDLE hDevice;					
 
-	unsigned int BScanlines;
-	unsigned int BScanPerSec;
-	unsigned long SamplesPerSec; 
-	unsigned long ZeroBufferPoint;
-    
-	int xscanMode;
-    int yscanMode;
+	int BScanlines;
+	int BScanPerSec;
+	int SamplesPerSec; 
+	int ZeroBufferPoint;
 
-	unsigned long len_Transit;
-	unsigned long len_Total;
-	unsigned long len_Scan;
+	int len_Transit;
+	int len_Total;
+	int len_Scan;
 
-	short LinearCut(unsigned int start, unsigned int end, unsigned long length, unsigned int i);
+	int LinearCut(int start, int end, int length, int i);
 };
