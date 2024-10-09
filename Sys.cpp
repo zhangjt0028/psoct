@@ -128,7 +128,7 @@ int main(int argc, char* argv[])
 	{
 		USB3020_GetDevStatusDA(hDevice, &DAStatus, nDAChannel);
 		Sleep(10);
-		printf("nCurSegNum=%2d  nCurSegAddr=%4x  ",  DAStatus.nCurSegNum, DAStatus.nCurSegAddr);
+		printf("nCurSegNum=%2d  bTrigFlag=%4x  ",  DAStatus.nCurSegNum, DAStatus.bTrigFlag);
 		printf("nCurLoopCount=%4d  nCurSegLoopCount=%3d TR=%1d\n",  DAStatus.nCurLoopCount, DAStatus.nCurSegLoopCount, DAStatus.bTrigFlag);
 	}
 

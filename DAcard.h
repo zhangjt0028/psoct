@@ -23,9 +23,9 @@ protected:
 
 private:
 
-	PUSB3020_SEGMENT_INFO	pSegmentInfoX;
-	PUSB3020_SEGMENT_INFO	pSegmentInfoY;
-	PUSB3020_SEGMENT_INFO	pSegmentInfoT;
+	USB3020_SEGMENT_INFO	SegmentInfoX[5];
+	USB3020_SEGMENT_INFO	SegmentInfoY[5];
+	USB3020_SEGMENT_INFO	SegmentInfoT[5];
 
 
 	unsigned short* pDataX;
@@ -33,7 +33,7 @@ private:
 	unsigned short* pDataY;
 
 	HANDLE hDevice;					
-
+	USB3020_STATUS_DA DAStatus;
 	int BScanlines;
 	int BScanPerSec;
 	int SamplesPerSec; 
